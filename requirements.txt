@@ -1,0 +1,7 @@
+Django==4.2.7
+requests==2.31.0
+edge-tts==7.2.8
+gTTS==2.5.1
+python-dotenv==1.0.0
+gunicorn==21.2.0
+whitenoise==6.6.0

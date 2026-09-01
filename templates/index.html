@@ -1,0 +1,1949 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Askopedia AI Assistant</title>
+    <meta name="description" content="Professional AI Assistant with 3D Avatar">
+
+    <!-- Favicon -->
+    <link href="{% static 'assets/images/favicon.png' %}" rel="icon" type="image/png">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{% static 'assets/css/tailwind.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --dark-bg: #0f172a;
+            --light-bg: #f8fafc;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--dark-bg);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            cursor: default;
+        }
+        
+        #avatar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 40vh);
+            z-index: 1;
+        }
+        
+        #chat-interface {
+          position: fixed;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(100%, 800px);
+          background: rgba(15, 23, 42, 0.9);
+          backdrop-filter: blur(10px);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          z-index: 10;
+          padding: 20px;
+          box-sizing: border-box;
+          border-radius: 12px 12px 0 0;
+          max-height: 40vh;
+          display: flex;
+          flex-direction: column;
+        }
+      
+        #chat-messages {
+          overflow-y: auto;
+          margin-bottom: 15px;
+          padding-right: 10px;
+          flex-grow: 1;
+          max-height: calc(80vh - 100px);
+        }
+      
+        .message {
+          margin-bottom: 12px;
+          padding: 12px 16px;
+          border-radius: 18px;
+          max-width: 80%;
+          word-wrap: break-word;
+          line-height: 1.5;
+        }
+      
+        .user-message {
+          background: var(--primary-color);
+          color: white;
+          margin-left: auto;
+          border-bottom-right-radius: 4px;
+        }
+      
+        .assistant-message {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          margin-right: auto;
+          border-bottom-left-radius: 4px;
+        }
+      
+        #input-container {
+          display: flex;
+          gap: 12px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+      
+        #user-input {
+          flex: 1;
+          padding: 12px 16px;
+          border-radius: 24px;
+          border: none;
+          background: rgba(255, 255, 255, 0.1);
+          color: white !important;
+          font-size: 16px;
+          outline: none;
+          transition: background 0.2s;
+        }
+        
+        #user-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: #2563eb;
+            transform: scale(1.05);
+        }
+        
+        .control-btn:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+        }
+        
+        #language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #language-select, #voice-select {
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+        
+        #status-indicator {
+          position: fixed;
+          bottom: 120px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          display: none;
+          z-index: 20;
+      }
+
+      #status-indicator.speaking {
+          display: block;
+          animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+          0% { opacity: 0.7; }
+          50% { opacity: 1; }
+          100% { opacity: 0.7; }
+      }
+
+      #avatar-loading {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          font-size: 18px;
+          z-index: 5;
+      }
+        
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 840px) {
+            #chat-interface {
+                width: 95%;
+                padding: 15px;
+            }
+            
+            #language-selector {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            #chat-interface {
+                width: 100%;
+                border-radius: 0;
+            }
+            
+            .message {
+                max-width: 90%;
+                padding: 10px 14px;
+            }
+            
+            #language-selector {
+                top: 10px;
+                right: 10px;
+            }
+        }
+        
+        /* Custom scrollbar */
+        #chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+        
+        /* Typing indicator */
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: white;
+            margin-right: 4px;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+            margin-right: 0;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "{% static 'node_modules/three/build/three.module.js' %}",
+                "dat.gui": "{% static 'node_modules/dat.gui/build/dat.gui.module.js'%}",
+                "GLTFLoader": "{% static 'node_modules/three/examples/jsm/loaders/GLTFLoader.js' %}",
+                "OrbitControls":"{% static 'js/OrbitControls.js' %}",
+                "RGBELoader":"{% static 'js/RGBELoader.js' %}"
+            }
+        }
+    </script>
+<base target="_blank">
+</head>
+<body>
+    <!-- Language and Voice Selector -->
+    <div id="language-selector">
+        <select id="language-select">
+            <option value="en">English</option>
+            <option value="am">Amharic</option>
+        </select>
+        <select id="voice-select">
+            <option value="en-US-AriaNeural">Aria (English)</option>
+            <option value="am-ET-MekdesNeural">Mekdes (Amharic)</option>
+        </select>
+    </div>
+
+    <!-- 3D Avatar Container -->
+    <div id="avatar-container"></div>
+
+    <!-- Chat Interface -->
+    <div id="chat-interface">
+        <div id="chat-messages"></div>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." />
+            <button id="send-btn" class="control-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+            <button id="voice-btn" class="control-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="status-indicator">Speaking...</div>
+    <div id="avatar-loading">Loading Avatar...</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { RGBELoader } from 'RGBELoader';
+        import { GLTFLoader } from 'GLTFLoader';
+
+        // Initialize variables
+        let avatar;
+        let mixer;
+        let currentAnimation = null;
+        let selectedLanguage = 'en';
+        let selectedVoice = 'en-US-AriaNeural';
+        const statusIndicator = document.getElementById('status-indicator');
+        const avatarLoading = document.getElementById('avatar-loading');
+        const languageSelect = document.getElementById('language-select');
+        const voiceSelect = document.getElementById('voice-select');
+
+        // Voice options for different languages
+        const VOICE_OPTIONS = {
+            'en': [
+                { value: 'en-US-AriaNeural', name: 'Aria (Female)' },
+                { value: 'en-US-DavisNeural', name: 'Davis (Male)' },
+                { value: 'en-US-JennyNeural', name: 'Jenny (Female)' },
+                { value: 'en-US-GuyNeural', name: 'Guy (Male)' }
+            ],
+            'am': [
+                { value: 'am-ET-MekdesNeural', name: 'Mekdes (Female)' },
+                { value: 'am-ET-AmehaNeural', name: 'Ameha (Male)' }
+            ]
+        };
+
+        // Avatar configuration
+        const AVATAR_CONFIG = {
+            modelPath: '{% static "avatar_model/scene.gltf" %}',
+            resourcePath: '{% static "avatar_model/" %}',
+            scale: 0.8,
+            position: { x: 0, y: -110, z: 0 },
+            cameraPosition: { x: 0, y: 1.8, z: 50 },
+            cameraLookAt: { x: 0, y: 1.8, z: 50 }
+        };
+
+        // Set up Three.js scene
+        const scene = new THREE.Scene();
+        
+        // Camera settings
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.updateProjectionMatrix();
+        
+        scene.frustumCulled = false;
+        
+        // Renderer with proper settings
+        const renderer = new THREE.WebGLRenderer({ 
+            antialias: true, 
+            alpha: true,
+            powerPreference: "high-performance",
+            preserveDrawingBuffer: true,
+            depth: true,
+            stencil: false,
+            logarithmicDepthBuffer: false
+        });
+        
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = false;
+        renderer.physicallyCorrectLights = true;
+        renderer.clearColor(0x000000, 0);
+        
+        document.getElementById('avatar-container').appendChild(renderer.domElement);
+
+        function preventZfighting(material) {
+            if (!material) return;
+            
+            material.polygonOffset = true;
+            material.polygonOffsetFactor = -1;
+            material.polygonOffsetUnits = -1;
+            material.depthTest = true;
+            material.depthWrite = true;
+            
+            if (material.transparent) {
+                material.depthWrite = false;
+            }
+            
+            material.needsUpdate = true;
+        }
+
+        function enhanceHairMaterial(material) {
+            if (!material) return;
+            
+            const materialName = material.name.toLowerCase();
+            const color = material.color;
+            
+            const isHairLike = (
+                materialName.includes('hair') ||
+                materialName.includes('scalp') ||
+                materialName.includes('eyebrow') ||
+                materialName.includes('lash') ||
+                materialName.includes('brow') ||
+                (color && color.r < 0.4 && color.g < 0.3 && color.b < 0.25) ||
+                (color && Math.abs(color.r - color.g) < 0.1 && Math.abs(color.g - color.b) < 0.1 && color.r < 0.3)
+            );
+            
+            if (isHairLike) {
+                if (color) {
+                    const enhancedColor = new THREE.Color();
+                    const avg = (color.r + color.g + color.b) / 3;
+                    
+                    if (avg < 0.15) {
+                        enhancedColor.r = Math.min(1.0, color.r * 1.2);
+                        enhancedColor.g = Math.min(1.0, color.g * 1.1);
+                        enhancedColor.b = Math.min(1.0, color.b * 1.05);
+                    } else if (avg < 0.3) {
+                        enhancedColor.r = Math.min(1.0, color.r * 1.15);
+                        enhancedColor.g = Math.min(1.0, color.g * 1.05);
+                        enhancedColor.b = Math.min(1.0, color.b * 0.95);
+                    } else {
+                        enhancedColor.copy(color);
+                    }
+                    
+                    material.color.copy(enhancedColor);
+                }
+                
+                material.roughness = 0.35;
+                material.metalness = 0.05;
+                material.clearcoat = 0.3;
+                material.clearcoatRoughness = 0.2;
+                
+                if (material.isMeshPhysicalMaterial) {
+                    material.sheen = 0.4;
+                    material.sheenColor = new THREE.Color(0xcccccc);
+                    material.sheenRoughness = 0.3;
+                    material.specularIntensity = 0.5;
+                    material.specularColor = new THREE.Color(0xffffff);
+                }
+                
+                if (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) {
+                    material.roughness = 0.35;
+                    material.metalness = 0.05;
+                }
+                
+                preventZfighting(material);
+            }
+            
+            material.needsUpdate = true;
+        }
+
+        function enhanceSkinMaterial(material) {
+            if (!material) return;
+            
+            const color = material.color;
+            if (color) {
+                const r = color.r;
+                const g = color.g;
+                const b = color.b;
+                
+                const isSkinLike = (
+                    (r > 0.4 && r < 1.0) && 
+                    (g > 0.2 && g < 0.8) && 
+                    (b > 0.1 && b < 0.7) &&
+                    (r > g) && 
+                    (g > b)
+                );
+                
+                if (isSkinLike || material.name.toLowerCase().includes('skin') || 
+                    (material.map && material.map.name && material.map.name.toLowerCase().includes('skin'))) {
+                    
+                    const enhancedColor = new THREE.Color();
+                    enhancedColor.r = Math.min(1.0, color.r * 1.05);
+                    enhancedColor.g = Math.min(1.0, color.g * 0.95);
+                    enhancedColor.b = Math.min(1.0, color.b * 0.88);
+                    
+                    material.color.copy(enhancedColor);
+                    
+                    material.roughness = 0.45;
+                    material.metalness = 0.0;
+                    material.clearcoat = 0.15;
+                    material.clearcoatRoughness = 0.25;
+                    material.reflectivity = 0.5;
+                    material.subsurface = true;
+                    
+                    if (material.isMeshPhysicalMaterial) {
+                        material.sheen = 0.1;
+                        material.sheenColor = new THREE.Color(0xffddcc);
+                        material.sheenRoughness = 0.5;
+                        material.specularIntensity = 0.3;
+                        material.specularColor = new THREE.Color(0xffccbb);
+                    }
+                    
+                    if (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) {
+                        material.roughness = 0.45;
+                        material.metalness = 0.0;
+                    }
+                    
+                    preventZfighting(material);
+                }
+            }
+            
+            material.needsUpdate = true;
+        }
+
+        function fixMaterialRendering(material) {
+            if (!material) return;
+            
+            material.emissiveIntensity = 0.0;
+            
+            if (material.color) {
+                material.color.convertSRGBToLinear();
+            }
+            
+            if (material.transparent) {
+                material.opacity = Math.max(0.1, material.opacity);
+                material.depthWrite = false;
+                material.depthTest = true;
+            }
+            
+            material.blending = THREE.NormalBlending;
+            material.premultipliedAlpha = false;
+            material.side = THREE.DoubleSide;
+            
+            if (material.emissive) {
+                material.emissive.setHex(0x000000);
+            }
+            
+            enhanceSkinMaterial(material);
+            enhanceHairMaterial(material);
+            preventZfighting(material);
+            
+            material.needsUpdate = true;
+        }
+
+        function fixTexture(texture) {
+            if (!texture) return;
+            
+            texture.encoding = THREE.sRGBEncoding;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.anisotropy = 16;
+            texture.needsUpdate = true;
+        }
+
+        function ensureAvatarRendering() {
+            if (!avatar) return;
+            
+            avatar.traverse((child) => {
+                if (child.isMesh) {
+                    child.frustumCulled = false;
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                    child.renderOrder = 0;
+                    
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(material => {
+                                fixMaterialRendering(material);
+                                
+                                if (material.map) fixTexture(material.map);
+                                if (material.normalMap) fixTexture(material.normalMap);
+                                if (material.roughnessMap) fixTexture(material.roughnessMap);
+                                if (material.metalnessMap) fixTexture(material.metalnessMap);
+                                if (material.emissiveMap) fixTexture(material.emissiveMap);
+                                if (material.alphaMap) fixTexture(material.alphaMap);
+                            });
+                        } else {
+                            fixMaterialRendering(child.material);
+                            
+                            if (child.material.map) fixTexture(child.material.map);
+                            if (child.material.normalMap) fixTexture(child.material.normalMap);
+                            if (child.material.roughnessMap) fixTexture(child.material.roughnessMap);
+                            if (child.material.metalnessMap) fixTexture(child.material.metalnessMap);
+                            if (child.material.emissiveMap) fixTexture(child.material.emissiveMap);
+                            if (child.material.alphaMap) fixTexture(child.material.alphaMap);
+                        }
+                    }
+                }
+            });
+            
+            avatar.updateMatrix();
+            avatar.updateMatrixWorld(true);
+            renderer.render(scene, camera);
+        }
+
+        function setupLighting() {
+            scene.children = scene.children.filter(child => !(child instanceof THREE.Light));
+            
+            const keyLight = new THREE.DirectionalLight(0xffe6cc, 1.8);
+            keyLight.position.set(1, 1.5, 1.5);
+            keyLight.castShadow = false;
+            scene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0xccddff, 0.9);
+            fillLight.position.set(-1.2, 0.8, 1.0);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            rimLight.position.set(0, 2.0, -2);
+            scene.add(rimLight);
+
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            backLight.position.set(0, 1.5, -1.5);
+            scene.add(backLight);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const hairLight1 = new THREE.PointLight(0xffeedd, 1.2);
+            hairLight1.position.set(1.5, 1.5, 1.5);
+            scene.add(hairLight1);
+
+            const hairLight2 = new THREE.PointLight(0xffffff, 0.8);
+            hairLight2.position.set(-1.5, 1.2, 1.2);
+            scene.add(hairLight2);
+
+            const hairLight3 = new THREE.PointLight(0xfff0e0, 0.6);
+            hairLight3.position.set(0, 2.0, -1.0);
+            scene.add(hairLight3);
+
+            const subsurfaceLight = new THREE.PointLight(0xffccaa, 0.8);
+            subsurfaceLight.position.set(0, 1.0, 0.5);
+            scene.add(subsurfaceLight);
+
+            const rgbeLoader = new RGBELoader();
+            rgbeLoader.load('{% static "avatar_model/photo_studio_loft_hall_1k.hdr" %}', (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                texture.encoding = THREE.sRGBEncoding;
+                scene.environment = texture;
+                scene.background = texture;
+                scene.environmentIntensity = 0.6;
+            }, undefined, () => {
+                console.warn('HDR environment map failed to load, using fallback');
+            });
+        }
+
+        function setupCamera() {
+            camera.position.set(
+                AVATAR_CONFIG.cameraPosition.x,
+                AVATAR_CONFIG.cameraPosition.y,
+                AVATAR_CONFIG.cameraPosition.z
+            );
+            camera.lookAt(
+                AVATAR_CONFIG.cameraLookAt.x,
+                AVATAR_CONFIG.cameraLookAt.y,
+                AVATAR_CONFIG.cameraLookAt.z
+            );
+            camera.updateProjectionMatrix();
+        }
+
+        // Advanced Realistic Facial Animation System with Phoneme-Based Lip Sync
+        class AdvancedFacialAnimation {
+            constructor(avatar) {
+                this.avatar = avatar;
+                this.morphTargetInfluences = null;
+                this.morphTargetDictionary = null;
+                
+                this.MORPH_TARGETS = {
+                    LIPS_PURSED: 0,
+                    MOUTH_OPEN: 1,
+                    LEFT_EYE_CLOSED: 2,
+                    RIGHT_EYE_CLOSED: 3,
+                    UNUSED_4: 4,
+                    RIGHT_BROW_RAISED: 5
+                };
+                
+                this.isSpeaking = false;
+                this.isThinking = false;
+                this.audioContext = null;
+                this.analyser = null;
+                this.audioSource = null;
+                this.dataArray = null;
+                this.bufferLength = null;
+                this.isAudioSetup = false;
+                
+                this.eyeOpenness = 1.0;
+                this.mouthOpenness = 0.0;
+                this.targetMouthOpenness = 0.0;
+                
+                this.lastBlinkTime = 0;
+                this.lastExpressionTime = 0;
+                this.lastMicroMovementTime = 0;
+                
+                this.speechTimer = 0;
+                this.speechPattern = 0;
+                this.speechIntensity = 0;
+                this.volumeHistory = [];
+                this.maxHistoryLength = 5;
+                this.speechStyle = 'neutral';
+                
+                this.currentMood = 'neutral';
+                this.moodIntensity = 0.0;
+                this.emotionTransition = 0.0;
+                
+                this.headBone = null;
+                this.neckBone = null;
+                this.lastHeadOffset = null;
+                this.lastNeckOffset = null;
+                this.lastHeadResult = null;
+                this.lastNeckResult = null;
+                this.headRotation = { x: 0, y: 0, z: 0 };
+                this.headTarget = { x: 0, y: 0, z: 0 };
+                this.headShift = { x: 0, y: 0, z: 0 };
+                this.headShiftEase = { x: 0, y: 0, z: 0 };
+                this.idleHeadTime = 0;
+                this.nextHeadShift = 3.5 + Math.random() * 3.0;
+                this.speakingHeadTime = 0;
+
+                this.idleLipMorphs = [];
+                this.speechLipMorphs = [];
+                this.idleLipValue = 0;
+                this.idleLipTarget = 0;
+                this.idleLipTime = 0;
+                this.nextLipShift = 2.0 + Math.random() * 2.0;
+                this.speechLipValue = 0;
+
+                // Enhanced lip sync variables
+                this.phonemeMap = {};
+                this.visemeMap = {};
+                this.currentViseme = 'rest';
+                this.targetViseme = 'rest';
+                this.visemeBlendFactor = 0;
+                this.lastAudioTime = 0;
+                this.audioDataHistory = [];
+                this.frequencyBands = [];
+                this.formantAnalysis = { f1: 0, f2: 0, f3: 0 };
+                this.speechEnergy = 0;
+                this.zeroCrossingRate = 0;
+                this.pitchEstimate = 0;
+                
+                this.setupMorphTargets();
+                this.setupAudioContext();
+                this.setupHeadAndNeckBones();
+                this.setupNamedMorphGroups();
+                this.setupVisemeMapping();
+            }
+            
+            setupMorphTargets() {
+                this.avatar.traverse((child) => {
+                    if (child.isMesh && child.morphTargetInfluences && child.morphTargetInfluences.length > 0) {
+                        this.morphTargetInfluences = child.morphTargetInfluences;
+                        this.morphTargetDictionary = child.morphTargetDictionary || {};
+                        
+                        for (let i = 0; i < this.morphTargetInfluences.length; i++) {
+                            this.morphTargetInfluences[i] = 0;
+                        }
+                    }
+                });
+            }
+            
+            setupVisemeMapping() {
+                // Map phonemes to visemes (mouth shapes)
+                this.visemeMap = {
+                    'AA': { open: 0.7, width: 0.3, round: 0.1, jawDrop: 0.6 },
+                    'AE': { open: 0.6, width: 0.6, round: 0.1, jawDrop: 0.5 },
+                    'AH': { open: 0.4, width: 0.4, round: 0.2, jawDrop: 0.3 },
+                    'AO': { open: 0.6, width: 0.3, round: 0.6, jawDrop: 0.5 },
+                    'AW': { open: 0.5, width: 0.3, round: 0.7, jawDrop: 0.4 },
+                    'AY': { open: 0.6, width: 0.4, round: 0.2, jawDrop: 0.5 },
+                    'EH': { open: 0.5, width: 0.5, round: 0.1, jawDrop: 0.4 },
+                    'ER': { open: 0.3, width: 0.4, round: 0.3, jawDrop: 0.2 },
+                    'EY': { open: 0.5, width: 0.5, round: 0.1, jawDrop: 0.4 },
+                    'IH': { open: 0.3, width: 0.5, round: 0.1, jawDrop: 0.2 },
+                    'IY': { open: 0.2, width: 0.7, round: 0.1, jawDrop: 0.1 },
+                    'OW': { open: 0.4, width: 0.3, round: 0.8, jawDrop: 0.3 },
+                    'OY': { open: 0.5, width: 0.3, round: 0.7, jawDrop: 0.4 },
+                    'UH': { open: 0.3, width: 0.3, round: 0.7, jawDrop: 0.2 },
+                    'UW': { open: 0.2, width: 0.2, round: 0.9, jawDrop: 0.1 },
+                    'B': { open: 0.0, width: 0.1, round: 0.1, jawDrop: 0.0 },
+                    'CH': { open: 0.3, width: 0.3, round: 0.3, jawDrop: 0.2 },
+                    'D': { open: 0.2, width: 0.2, round: 0.1, jawDrop: 0.1 },
+                    'DH': { open: 0.2, width: 0.3, round: 0.1, jawDrop: 0.1 },
+                    'F': { open: 0.1, width: 0.2, round: 0.1, jawDrop: 0.05 },
+                    'G': { open: 0.2, width: 0.2, round: 0.1, jawDrop: 0.1 },
+                    'HH': { open: 0.4, width: 0.3, round: 0.1, jawDrop: 0.3 },
+                    'JH': { open: 0.3, width: 0.3, round: 0.3, jawDrop: 0.2 },
+                    'K': { open: 0.2, width: 0.2, round: 0.1, jawDrop: 0.1 },
+                    'L': { open: 0.3, width: 0.4, round: 0.1, jawDrop: 0.2 },
+                    'M': { open: 0.0, width: 0.1, round: 0.1, jawDrop: 0.0 },
+                    'N': { open: 0.2, width: 0.2, round: 0.1, jawDrop: 0.1 },
+                    'NG': { open: 0.3, width: 0.2, round: 0.1, jawDrop: 0.2 },
+                    'P': { open: 0.0, width: 0.1, round: 0.1, jawDrop: 0.0 },
+                    'R': { open: 0.3, width: 0.4, round: 0.4, jawDrop: 0.2 },
+                    'S': { open: 0.2, width: 0.4, round: 0.1, jawDrop: 0.1 },
+                    'SH': { open: 0.3, width: 0.3, round: 0.4, jawDrop: 0.2 },
+                    'T': { open: 0.2, width: 0.3, round: 0.1, jawDrop: 0.1 },
+                    'TH': { open: 0.2, width: 0.4, round: 0.1, jawDrop: 0.1 },
+                    'V': { open: 0.1, width: 0.2, round: 0.1, jawDrop: 0.05 },
+                    'W': { open: 0.2, width: 0.2, round: 0.8, jawDrop: 0.1 },
+                    'Y': { open: 0.2, width: 0.5, round: 0.1, jawDrop: 0.1 },
+                    'Z': { open: 0.2, width: 0.3, round: 0.1, jawDrop: 0.1 },
+                    'ZH': { open: 0.3, width: 0.3, round: 0.4, jawDrop: 0.2 }
+                };
+            }
+            
+            setupAudioContext() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 256;
+                    this.analyser.smoothingTimeConstant = 0.8;
+                    this.bufferLength = this.analyser.frequencyBinCount;
+                    this.dataArray = new Uint8Array(this.bufferLength);
+                    this.frequencyBands = new Array(8).fill(0);
+                    this.isAudioSetup = true;
+                } catch (e) {
+                    console.warn('Web Audio API not supported, using simulated lip-sync:', e);
+                }
+            }
+            
+            connectAudioSource(audioElement) {
+                if (!this.isAudioSetup || !this.audioContext || !this.analyser) {
+                    return;
+                }
+                
+                try {
+                    if (this.audioContext.state === 'suspended') {
+                        this.audioContext.resume();
+                    }
+                    
+                    if (this.audioSource) {
+                        this.audioSource.disconnect();
+                    }
+                    
+                    this.audioSource = this.audioContext.createMediaElementSource(audioElement);
+                    this.audioSource.connect(this.analyser);
+                    this.analyser.connect(this.audioContext.destination);
+                    
+                    // Reset audio history
+                    this.audioDataHistory = [];
+                    this.lastAudioTime = 0;
+                } catch (e) {
+                    console.error('Error connecting audio source:', e);
+                    this.isAudioSetup = false;
+                }
+            }
+            
+            update(deltaTime) {
+                this.updateEyeMovements();
+                
+                if (!this.isSpeaking) {
+                    this.updateIdleBehavior();
+                } else {
+                    if (this.isAudioSetup) {
+                        this.updateRealTimeLipSync(deltaTime);
+                    } else {
+                        this.updateSimulatedLipSync(deltaTime);
+                    }
+                }
+                
+                this.updateEmotionalExpressions(deltaTime);
+                this.updateIdleLipMotion(deltaTime);
+                this.updateSpeechLipShaping(deltaTime);
+                this.applyFacialExpressions();
+                this.updateHeadAndNeck(deltaTime);
+            }
+            
+            updateEyeMovements() {
+                const currentTime = Date.now();
+                
+                if (currentTime - this.lastBlinkTime > 2800 + Math.random() * 3500) {
+                    this.performNaturalBlink();
+                    this.lastBlinkTime = currentTime;
+                }
+            }
+            
+            updateRealTimeLipSync(deltaTime) {
+                if (!this.analyser || !this.dataArray) return;
+                
+                try {
+                    // Get time domain data for zero-crossing rate
+                    const timeData = new Uint8Array(this.analyser.fftSize);
+                    this.analyser.getByteTimeDomainData(timeData);
+                    
+                    // Calculate zero-crossing rate (helps detect consonants)
+                    let zcr = 0;
+                    for (let i = 1; i < timeData.length; i++) {
+                        const prev = timeData[i - 1] - 128;
+                        const curr = timeData[i] - 128;
+                        if ((prev < 0 && curr >= 0) || (prev >= 0 && curr < 0)) {
+                            zcr++;
+                        }
+                    }
+                    this.zeroCrossingRate = zcr / timeData.length;
+                    
+                    // Get frequency data
+                    this.analyser.getByteFrequencyData(this.dataArray);
+                    
+                    // Calculate frequency bands (more detailed than before)
+                    const bands = 8;
+                    const bandSize = Math.floor(this.bufferLength / bands);
+                    
+                    for (let i = 0; i < bands; i++) {
+                        let sum = 0;
+                        const start = i * bandSize;
+                        const end = (i + 1) * bandSize;
+                        for (let j = start; j < end; j++) {
+                            sum += this.dataArray[j];
+                        }
+                        this.frequencyBands[i] = sum / bandSize / 255;
+                    }
+                    
+                    // Calculate formants (simplified)
+                    this.formantAnalysis.f1 = (this.frequencyBands[1] + this.frequencyBands[2]) / 2;
+                    this.formantAnalysis.f2 = (this.frequencyBands[3] + this.frequencyBands[4]) / 2;
+                    this.formantAnalysis.f3 = (this.frequencyBands[5] + this.frequencyBands[6]) / 2;
+                    
+                    // Calculate speech energy
+                    this.speechEnergy = this.frequencyBands.reduce((a, b) => a + b, 0) / bands;
+                    
+                    // Detect current viseme based on audio characteristics
+                    const detectedViseme = this.detectVisemeFromAudio();
+                    
+                    // Smoothly transition between visemes
+                    if (detectedViseme !== this.currentViseme) {
+                        this.targetViseme = detectedViseme;
+                        this.visemeBlendFactor = 0;
+                    }
+                    
+                    this.currentViseme = this.targetViseme;
+                    this.visemeBlendFactor = Math.min(1, this.visemeBlendFactor + deltaTime * 15);
+                    
+                    // Apply viseme to mouth shapes
+                    this.applyVisemeToMouth(this.currentViseme, this.visemeBlendFactor);
+                    
+                    // Store audio data for pattern analysis
+                    this.audioDataHistory.push({
+                        time: performance.now(),
+                        energy: this.speechEnergy,
+                        zcr: this.zeroCrossingRate,
+                        f1: this.formantAnalysis.f1,
+                        f2: this.formantAnalysis.f2,
+                        f3: this.formantAnalysis.f3
+                    });
+                    
+                    // Keep history manageable
+                    if (this.audioDataHistory.length > 100) {
+                        this.audioDataHistory.shift();
+                    }
+                    
+                } catch (e) {
+                    console.error('Error in real-time lip-sync:', e);
+                    this.updateSimulatedLipSync(deltaTime);
+                }
+            }
+            
+            detectVisemeFromAudio() {
+                // Use audio characteristics to determine viseme
+                const { f1, f2, f3 } = this.formantAnalysis;
+                const { zeroCrossingRate, speechEnergy } = this;
+                
+                // Silence detection
+                if (speechEnergy < 0.01) {
+                    return 'rest';
+                }
+                
+                // Plosive consonants (B, P, M) - low energy, sudden burst
+                if (zeroCrossingRate < 0.1 && speechEnergy > 0.02 && speechEnergy < 0.15) {
+                    if (f1 < 0.1 && f2 < 0.1) {
+                        return Math.random() > 0.5 ? 'B' : 'P';
+                    }
+                }
+                
+                // Fricatives (F, V, S, Z, SH, TH)
+                if (zeroCrossingRate > 0.15 && zeroCrossingRate < 0.3) {
+                    if (f2 > 0.3) {
+                        return Math.random() > 0.5 ? 'F' : 'V';
+                    } else if (f3 > 0.2) {
+                        return Math.random() > 0.5 ? 'S' : 'SH';
+                    }
+                }
+                
+                // High vowels (IY, IH)
+                if (f1 < 0.2 && f2 > 0.4) {
+                    return f2 > 0.6 ? 'IY' : 'IH';
+                }
+                
+                // Low vowels (AA, AE)
+                if (f1 > 0.3 && f2 < 0.4) {
+                    return f2 > 0.3 ? 'AE' : 'AA';
+                }
+                
+                // Round vowels (UW, OW)
+                if (f1 < 0.2 && f2 < 0.3) {
+                    return f1 < 0.15 ? 'UW' : 'OW';
+                }
+                
+                // Mid vowels (EH, AH)
+                if (f1 > 0.2 && f1 < 0.4 && f2 > 0.3 && f2 < 0.5) {
+                    return f2 > 0.4 ? 'EH' : 'AH';
+                }
+                
+                // Nasals (M, N, NG)
+                if (zeroCrossingRate < 0.1 && f1 < 0.15 && f2 < 0.15) {
+                    return Math.random() > 0.5 ? 'M' : 'N';
+                }
+                
+                // Default to a neutral open vowel
+                return 'AH';
+            }
+            
+            applyVisemeToMouth(viseme, blendFactor) {
+                const visemeData = this.visemeMap[viseme] || this.visemeMap['AH'];
+                
+                // Apply with smooth interpolation
+                const targetOpen = visemeData.open * blendFactor;
+                const targetWidth = visemeData.width * blendFactor;
+                const targetRound = visemeData.round * blendFactor;
+                const targetJawDrop = visemeData.jawDrop * blendFactor;
+                
+                // Smooth mouth openness
+                this.targetMouthOpenness = targetOpen;
+                this.mouthOpenness += (this.targetMouthOpenness - this.mouthOpenness) * 0.3;
+                
+                // Apply lip width (using lips pursed morph target inversely)
+                const lipPurseAmount = Math.max(0, 1 - targetWidth) * targetRound;
+                this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, lipPurseAmount * blendFactor);
+                
+                // Store for other systems
+                this.currentJawDrop = targetJawDrop;
+            }
+            
+            updateSimulatedLipSync(deltaTime) {
+                this.speechTimer += deltaTime;
+                
+                const time = this.speechTimer * 8;
+                
+                // Simulate phoneme variation
+                const phonemeSequence = [
+                    { viseme: 'AA', duration: 0.2 },
+                    { viseme: 'B', duration: 0.1 },
+                    { viseme: 'IY', duration: 0.15 },
+                    { viseme: 'F', duration: 0.1 },
+                    { viseme: 'OW', duration: 0.2 },
+                    { viseme: 'M', duration: 0.1 },
+                    { viseme: 'EH', duration: 0.15 },
+                    { viseme: 'S', duration: 0.1 }
+                ];
+                
+                const sequenceLength = phonemeSequence.reduce((sum, p) => sum + p.duration, 0);
+                const sequenceTime = time % sequenceLength;
+                
+                let cumulativeTime = 0;
+                let currentPhoneme = phonemeSequence[0];
+                
+                for (const phoneme of phonemeSequence) {
+                    if (sequenceTime < cumulativeTime + phoneme.duration) {
+                        currentPhoneme = phoneme;
+                        break;
+                    }
+                    cumulativeTime += phoneme.duration;
+                }
+                
+                this.applyVisemeToMouth(currentPhoneme.viseme, 1);
+            }
+            
+            updateIdleBehavior() {
+                this.targetMouthOpenness = 0;
+                this.mouthOpenness += (this.targetMouthOpenness - this.mouthOpenness) * 0.1;
+                this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, 0);
+                
+                const currentTime = Date.now();
+                
+                if (currentTime - this.lastMicroMovementTime > 3500 + Math.random() * 4500) {
+                    this.performMicroExpression();
+                    this.lastMicroMovementTime = currentTime;
+                }
+            }
+            
+            performNaturalBlink() {
+                const blinkDuration = 180 + Math.random() * 60;
+                const blinkIntensity = 0.8 + Math.random() * 0.2;
+                
+                this.eyeOpenness = 1.0 - blinkIntensity;
+                
+                setTimeout(() => {
+                    this.eyeOpenness = 1.0;
+                }, blinkDuration);
+            }
+            
+            performMicroExpression() {
+                const expressions = [
+                    { type: 'contemplative', brow: 0.12, lips: 0.05, duration: 450 },
+                    { type: 'slight_smile', brow: 0.0, lips: 0.08, duration: 380 },
+                    { type: 'curious', brow: 0.15, lips: 0.02, duration: 520 },
+                    { type: 'focused', brow: 0.08, lips: 0.03, duration: 400 }
+                ];
+                
+                const expr = expressions[Math.floor(Math.random() * expressions.length)];
+                
+                this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, expr.brow);
+                this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, expr.lips);
+                
+                setTimeout(() => {
+                    this.resetExpressionMorphTargets();
+                }, expr.duration);
+            }
+            
+            updateEmotionalExpressions(deltaTime) {
+                this.emotionTransition += deltaTime * 2;
+                if (this.emotionTransition > 1) this.emotionTransition = 1;
+                
+                const transitionEase = 1 - Math.pow(1 - this.emotionTransition, 3);
+                
+                switch(this.currentMood) {
+                    case 'happy':
+                        this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, 
+                            this.moodIntensity * 0.4 * transitionEase);
+                        this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, 
+                            this.moodIntensity * 0.3 * transitionEase);
+                        this.speechStyle = 'excited';
+                        break;
+                    case 'curious':
+                        this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, 
+                            this.moodIntensity * 0.6 * transitionEase);
+                        this.speechStyle = 'neutral';
+                        break;
+                    case 'concerned':
+                        this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, 
+                            this.moodIntensity * 0.3 * transitionEase);
+                        this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, 
+                            this.moodIntensity * 0.4 * transitionEase);
+                        this.speechStyle = 'calm';
+                        break;
+                    case 'emphatic':
+                        this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, 
+                            this.moodIntensity * 0.5 * transitionEase);
+                        this.speechStyle = 'emphatic';
+                        break;
+                    case 'neutral':
+                    default:
+                        this.speechStyle = 'neutral';
+                        break;
+                }
+            }
+            
+            applyFacialExpressions() {
+                const eyeMorphValue = 1 - this.eyeOpenness;
+                this.setMorphTarget(this.MORPH_TARGETS.LEFT_EYE_CLOSED, eyeMorphValue);
+                this.setMorphTarget(this.MORPH_TARGETS.RIGHT_EYE_CLOSED, eyeMorphValue);
+                
+                this.setMorphTarget(this.MORPH_TARGETS.MOUTH_OPEN, this.mouthOpenness);
+            }
+            
+            startSpeaking(audioElement) {
+                this.isSpeaking = true;
+                this.speechTimer = 0;
+                this.volumeHistory = [];
+                this.emotionTransition = 0;
+                this.audioDataHistory = [];
+                this.currentViseme = 'rest';
+                this.targetViseme = 'rest';
+                this.visemeBlendFactor = 0;
+                this.connectAudioSource(audioElement);
+                
+                this.targetMouthOpenness = 0.1;
+            }
+            
+            stopSpeaking() {
+                this.isSpeaking = false;
+                this.targetMouthOpenness = 0;
+                this.speechStyle = 'neutral';
+                this.currentViseme = 'rest';
+                this.targetViseme = 'rest';
+                this.resetExpressionMorphTargets();
+                
+                if (this.audioSource) {
+                    try {
+                        this.audioSource.disconnect();
+                        this.audioSource = null;
+                    } catch (e) {
+                        console.warn('Error disconnecting audio:', e);
+                    }
+                }
+            }
+            
+            setThinking(thinking) {
+                this.isThinking = thinking;
+                if (!thinking) {
+                    this.resetExpressionMorphTargets();
+                }
+            }
+            
+            setMood(mood, intensity = 0.5) {
+                this.currentMood = mood;
+                this.moodIntensity = Math.max(0, Math.min(1, intensity));
+                this.emotionTransition = 0;
+            }
+            
+            resetExpressionMorphTargets() {
+                this.setMorphTarget(this.MORPH_TARGETS.LIPS_PURSED, 0);
+                this.setMorphTarget(this.MORPH_TARGETS.RIGHT_BROW_RAISED, 0);
+            }
+            
+            setMorphTarget(index, value) {
+                if (this.morphTargetInfluences && index >= 0 && index < this.morphTargetInfluences.length) {
+                    this.morphTargetInfluences[index] = Math.max(0, Math.min(1, value));
+                }
+            }
+
+            setupHeadAndNeckBones() {
+                this.avatar.traverse((child) => {
+                    if (!child.isBone) return;
+                    const name = child.name.toLowerCase();
+                    if (!this.headBone && name.includes('head') &&
+                        !name.includes('headtop') && !name.includes('head_top') &&
+                        !name.includes('eye') && !name.includes('jaw') &&
+                        !name.includes('brow') && !name.includes('teeth')) {
+                        this.headBone = child;
+                    }
+                    if (!this.neckBone && name.includes('neck')) {
+                        this.neckBone = child;
+                    }
+                });
+            }
+
+            setupNamedMorphGroups() {
+                const idleKeywords = ['mouthpucker', 'mouthpress', 'lipspressed', 'mouthfunnel', 'mouthshrug'];
+                const speechKeywords = ['mouthsmile', 'mouthwide', 'mouthstretch', 'mouthdimple', 'mouthupperup'];
+
+                this.avatar.traverse((child) => {
+                    if (!child.isMesh || !child.morphTargetDictionary || !child.morphTargetInfluences) return;
+
+                    Object.keys(child.morphTargetDictionary).forEach((key) => {
+                        const normalized = key.toLowerCase().replace(/[^a-z]/g, '');
+                        if (normalized.includes('open') || normalized.includes('jaw')) return;
+
+                        const entry = {
+                            mesh: child,
+                            index: child.morphTargetDictionary[key],
+                            current: 0
+                        };
+
+                        if (idleKeywords.some(k => normalized.includes(k))) {
+                            this.idleLipMorphs.push(entry);
+                        } else if (speechKeywords.some(k => normalized.includes(k))) {
+                            this.speechLipMorphs.push(entry);
+                        }
+                    });
+                });
+            }
+
+            applyMorphGroup(group, value, maxValue) {
+                group.forEach((entry) => {
+                    entry.current += (value - entry.current) * 0.15;
+                    const v = Math.max(0, Math.min(maxValue, entry.current));
+                    if (v > 0.001 || entry.mesh.morphTargetInfluences[entry.index] > 0.001) {
+                        entry.mesh.morphTargetInfluences[entry.index] = v;
+                    }
+                });
+            }
+
+            updateIdleLipMotion(deltaTime) {
+                if (this.isSpeaking) {
+                    this.applyMorphGroup(this.idleLipMorphs, 0, 0.25);
+                    this.idleLipValue = 0;
+                    return;
+                }
+
+                this.mouthOpenness = 0;
+                this.targetMouthOpenness = 0;
+                this.setMorphTarget(this.MORPH_TARGETS.MOUTH_OPEN, 0);
+
+                if (this.idleLipMorphs.length === 0) return;
+
+                this.idleLipTime += deltaTime;
+                if (this.idleLipTime >= this.nextLipShift) {
+                    this.idleLipTime = 0;
+                    this.nextLipShift = 2.0 + Math.random() * 3.5;
+                    this.idleLipTarget = 0.03 + Math.random() * 0.10;
+                }
+
+                const t = performance.now() * 0.001;
+                const ripple = (Math.sin(t * 1.7) * 0.5 + 0.5) * 0.03;
+                const desired = Math.min(0.15, this.idleLipTarget + ripple);
+                this.idleLipValue += (desired - this.idleLipValue) * Math.min(1, deltaTime * 2.0);
+                this.applyMorphGroup(this.idleLipMorphs, this.idleLipValue, 0.18);
+            }
+
+            updateSpeechLipShaping(deltaTime) {
+                if (this.speechLipMorphs.length === 0) return;
+
+                let target = 0;
+                if (this.isSpeaking) {
+                    // Use viseme data for more precise lip shaping
+                    const visemeData = this.visemeMap[this.currentViseme] || this.visemeMap['AH'];
+                    target = Math.min(0.35, visemeData.width * 0.3 + this.mouthOpenness * 0.15);
+                }
+
+                this.speechLipValue += (target - this.speechLipValue) * Math.min(1, deltaTime * 6.0);
+                this.applyMorphGroup(this.speechLipMorphs, this.speechLipValue, 0.35);
+            }
+
+            updateHeadAndNeck(deltaTime) {
+                if (!this.headBone && !this.neckBone) return;
+
+                if (this.isSpeaking) {
+                    this.speakingHeadTime += deltaTime;
+                    const t = this.speakingHeadTime;
+                    this.headTarget.x = Math.sin(t * 1.6) * 0.018 + this.mouthOpenness * 0.05;
+                    this.headTarget.y = Math.sin(t * 0.9 + 0.7) * 0.030;
+                    this.headTarget.z = Math.sin(t * 1.1 + 2.0) * 0.015;
+                    this.headShiftEase.x += (0 - this.headShiftEase.x) * Math.min(1, deltaTime * 1.5);
+                    this.headShiftEase.y += (0 - this.headShiftEase.y) * Math.min(1, deltaTime * 1.5);
+                    this.headShiftEase.z += (0 - this.headShiftEase.z) * Math.min(1, deltaTime * 1.5);
+                } else {
+                    this.idleHeadTime += deltaTime;
+
+                    if (this.idleHeadTime >= this.nextHeadShift) {
+                        this.idleHeadTime = 0;
+                        this.nextHeadShift = 3.5 + Math.random() * 4.0;
+                        this.headShift = {
+                            x: (Math.random() - 0.5) * 0.10,
+                            y: (Math.random() - 0.5) * 0.16,
+                            z: (Math.random() - 0.5) * 0.12
+                        };
+                    }
+
+                    const easeSpeed = Math.min(1, deltaTime * 0.8);
+                    this.headShiftEase.x += (this.headShift.x - this.headShiftEase.x) * easeSpeed;
+                    this.headShiftEase.y += (this.headShift.y - this.headShiftEase.y) * easeSpeed;
+                    this.headShiftEase.z += (this.headShift.z - this.headShiftEase.z) * easeSpeed;
+
+                    const t = performance.now() * 0.001;
+                    const swayX = Math.sin(t * 0.45) * 0.015;
+                    const swayY = Math.sin(t * 0.30 + 1.3) * 0.020;
+                    const swayZ = Math.sin(t * 0.55 + 0.6) * 0.012;
+
+                    this.headTarget.x = swayX + this.headShiftEase.x;
+                    this.headTarget.y = swayY + this.headShiftEase.y;
+                    this.headTarget.z = swayZ + this.headShiftEase.z;
+                }
+
+                const smooth = Math.min(1, deltaTime * 3.0);
+                this.headRotation.x += (this.headTarget.x - this.headRotation.x) * smooth;
+                this.headRotation.y += (this.headTarget.y - this.headRotation.y) * smooth;
+                this.headRotation.z += (this.headTarget.z - this.headRotation.z) * smooth;
+
+                const clamp = (v, m) => Math.max(-m, Math.min(m, v));
+                this.headRotation.x = clamp(this.headRotation.x, 0.12);
+                this.headRotation.y = clamp(this.headRotation.y, 0.15);
+                this.headRotation.z = clamp(this.headRotation.z, 0.12);
+
+                const headOffset = new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(this.headRotation.x, this.headRotation.y, this.headRotation.z, 'XYZ')
+                );
+                const neckOffset = new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(this.headRotation.x * 0.5, this.headRotation.y * 0.5, this.headRotation.z * 0.5, 'XYZ')
+                );
+
+                this.applyAdditiveBoneOffset(this.headBone, headOffset, 'lastHeadOffset', 'lastHeadResult');
+                this.applyAdditiveBoneOffset(this.neckBone, neckOffset, 'lastNeckOffset', 'lastNeckResult');
+            }
+
+            applyAdditiveBoneOffset(bone, offsetQuat, lastOffsetKey, lastResultKey) {
+                if (!bone) return;
+
+                const lastOffset = this[lastOffsetKey];
+                const lastResult = this[lastResultKey];
+
+                if (lastOffset && lastResult && bone.quaternion.angleTo(lastResult) < 1e-4) {
+                    bone.quaternion.multiply(lastOffset.clone().invert());
+                }
+
+                bone.quaternion.multiply(offsetQuat);
+                this[lastOffsetKey] = offsetQuat.clone();
+                this[lastResultKey] = bone.quaternion.clone();
+            }
+        }
+
+        // Global animation system reference
+        let facialAnimationSystem = null;
+
+        // Enhanced Custom GLTF Loader
+        class CustomGLTFLoader {
+            constructor(manager) {
+                this.loader = new GLTFLoader(manager);
+                this.textureLoader = new THREE.TextureLoader(manager);
+            }
+
+            load(url, onLoad, onProgress, onError) {
+                const basePath = THREE.LoaderUtils.extractUrlBase(url);
+                this.loader.setResourcePath(basePath);
+
+                this.loader.load(url, (gltf) => {
+                    this.fixTextures(gltf);
+                    
+                    gltf.scene.traverse((child) => {
+                        if (child.isMesh) {
+                            child.frustumCulled = false;
+                            child.castShadow = false;
+                            child.receiveShadow = false;
+                            
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(material => {
+                                        fixMaterialRendering(material);
+                                    });
+                                } else {
+                                    fixMaterialRendering(child.material);
+                                }
+                            }
+                        }
+                    });
+                    
+                    onLoad(gltf);
+                }, onProgress, onError);
+            }
+
+            fixTextures(gltf) {
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(material => this.fixMaterialTextures(material));
+                        } else {
+                            this.fixMaterialTextures(child.material);
+                        }
+                    }
+                });
+            }
+
+            fixMaterialTextures(material) {
+                const textureProperties = [
+                    'map', 'normalMap', 'roughnessMap', 'metalnessMap', 
+                    'emissiveMap', 'alphaMap', 'envMap'
+                ];
+
+                textureProperties.forEach(prop => {
+                    if (material[prop] && material[prop].isTexture) {
+                        fixTexture(material[prop]);
+                    }
+                });
+            }
+        }
+
+        // Load avatar model
+        function loadAvatar() {
+            if (avatar) {
+                scene.remove(avatar);
+                avatar = null;
+            }
+            
+            if (mixer) {
+                mixer.stopAllAction();
+                mixer = null;
+            }
+            
+            facialAnimationSystem = null;
+            
+            avatarLoading.style.display = 'block';
+            avatarLoading.textContent = 'Loading Avatar...';
+            
+            setupLighting();
+            setupCamera();
+            
+            const loader = new CustomGLTFLoader();
+            
+            loader.loader.manager.onError = (url) => {
+                console.warn(`Error loading resource: ${url}`);
+            };
+            
+            loader.load(AVATAR_CONFIG.modelPath, (gltf) => {
+                avatar = gltf.scene;
+                const animations = gltf.animations;
+                
+                avatar.scale.setScalar(AVATAR_CONFIG.scale);
+                avatar.position.set(
+                    AVATAR_CONFIG.position.x,
+                    AVATAR_CONFIG.position.y,
+                    AVATAR_CONFIG.position.z
+                );
+                
+                ensureAvatarRendering();
+                
+                scene.add(avatar);
+                avatarLoading.style.display = 'none';
+                
+                mixer = new THREE.AnimationMixer(avatar);
+                facialAnimationSystem = new AdvancedFacialAnimation(avatar);
+                
+                if (animations && animations.length > 0) {
+                    const idleAnimation = animations.find(anim => 
+                        anim.name.toLowerCase().includes('idle') || 
+                        anim.name.toLowerCase().includes('breath')
+                    );
+                    
+                    if (idleAnimation) {
+                        currentAnimation = mixer.clipAction(idleAnimation);
+                        currentAnimation.play();
+                    }
+                }
+                
+                renderer.render(scene, camera);
+                
+            }, 
+            (progress) => {
+                const percent = (progress.loaded / progress.total * 100).toFixed(2);
+                avatarLoading.textContent = `Loading Avatar... ${percent}%`;
+            },
+            (error) => {
+                console.error('Error loading avatar:', error);
+                avatarLoading.textContent = 'Error loading avatar';
+            });
+        }
+
+        // Animation loop
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            if (facialAnimationSystem) facialAnimationSystem.update(delta);
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Update voice options when language changes
+        function updateVoiceOptions() {
+            const voices = VOICE_OPTIONS[selectedLanguage] || VOICE_OPTIONS['en'];
+            voiceSelect.innerHTML = '';
+            
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.value;
+                option.textContent = voice.name;
+                voiceSelect.appendChild(option);
+            });
+            
+            selectedVoice = voiceSelect.value;
+        }
+
+        // Initialize voice options and load avatar
+        updateVoiceOptions();
+        loadAvatar();
+
+        // Chat functionality
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const voiceBtn = document.getElementById('voice-btn');
+
+        // Update selected language and voice
+        languageSelect.addEventListener('change', (e) => {
+            selectedLanguage = e.target.value;
+            updateVoiceOptions();
+        });
+
+        voiceSelect.addEventListener('change', (e) => {
+            selectedVoice = e.target.value;
+        });
+
+        // Helper function to add message to chat
+        function addMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            if (facialAnimationSystem && facialAnimationSystem.setThinking) {
+                facialAnimationSystem.setThinking(true);
+            }
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+            
+            if (facialAnimationSystem && facialAnimationSystem.setThinking) {
+                facialAnimationSystem.setThinking(false);
+            }
+        }
+
+        // Send message to server
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+            
+            addMessage(message, true);
+            userInput.value = '';
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch('/chat/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        language: selectedLanguage
+                    })
+                });
+                
+                const data = await response.json();
+                hideTypingIndicator();
+                
+                if (data.message) {
+                    addMessage(data.message, false);
+                    
+                    if (facialAnimationSystem && facialAnimationSystem.setMood) {
+                        const responseText = data.message.toLowerCase();
+                        if (responseText.includes('happy') || responseText.includes('great') || responseText.includes('wonderful') || responseText.includes('excellent')) {
+                            facialAnimationSystem.setMood('happy', 0.8);
+                        } else if (responseText.includes('sorry') || responseText.includes('unfortunately') || responseText.includes('problem') || responseText.includes('cannot')) {
+                            facialAnimationSystem.setMood('concerned', 0.6);
+                        } else if (responseText.includes('interesting') || responseText.includes('tell me more') || responseText.includes('curious')) {
+                            facialAnimationSystem.setMood('curious', 0.7);
+                        } else if (responseText.includes('important') || responseText.includes('must') || responseText.includes('should') || responseText.includes('definitely')) {
+                            facialAnimationSystem.setMood('emphatic', 0.5);
+                        } else {
+                            facialAnimationSystem.setMood('neutral', 0.3);
+                        }
+                    }
+                    
+                    playAudioResponse(data.message);
+                } else {
+                    addMessage("Sorry, I didn't get a response. Please try again.", false);
+                }
+                
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('Error:', error);
+                addMessage("Sorry, I'm having trouble connecting to the server.", false);
+            }
+        }
+
+        // Edge TTS audio playback
+        function playAudioResponse(text) {
+            const ttsUrl = `/edge-tts/?text=${encodeURIComponent(text)}&voice=${selectedVoice}&lang=${selectedLanguage}`;
+            const audio = new Audio(ttsUrl);
+            
+            audio.addEventListener('play', () => {
+                statusIndicator.style.display = 'block';
+                statusIndicator.textContent = "Speaking...";
+                
+                if (facialAnimationSystem) {
+                    facialAnimationSystem.startSpeaking(audio);
+                }
+            });
+
+            audio.addEventListener('ended', () => {
+                statusIndicator.style.display = 'none';
+                if (facialAnimationSystem) {
+                    facialAnimationSystem.stopSpeaking();
+                    if (facialAnimationSystem.setMood) {
+                        facialAnimationSystem.setMood('neutral', 0.1);
+                    }
+                }
+            });
+
+            audio.addEventListener('error', (e) => {
+                console.error('Edge TTS error:', e);
+                statusIndicator.textContent = "Audio error";
+                statusIndicator.style.display = 'block';
+                setTimeout(() => {
+                    statusIndicator.style.display = 'none';
+                    if (facialAnimationSystem) {
+                        facialAnimationSystem.stopSpeaking();
+                    }
+                }, 2000);
+            });
+
+            audio.play().catch(e => {
+                console.error("Edge TTS play failed:", e);
+                statusIndicator.textContent = "Audio error";
+                statusIndicator.style.display = 'block';
+                setTimeout(() => {
+                    statusIndicator.style.display = 'none';
+                }, 2000);
+            });
+        }
+
+        // Handle text input
+        sendBtn.addEventListener('click', () => {
+            sendMessage(userInput.value);
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(userInput.value);
+            }
+        });
+
+        // Voice recognition
+
+        // Voice recording and transcription
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimeout = null;
+let isRecording = false;
+
+voiceBtn.addEventListener('click', toggleRecording);
+
+async function toggleRecording() {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+async function startRecording() {
+    try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                channelCount: 1,
+                sampleRate: 44100,
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
+        
+        // Check for supported MIME types
+        const mimeTypes = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4',
+            'audio/ogg;codecs=opus',
+            'audio/wav'
+        ];
+        
+        let selectedMimeType = '';
+        for (const mimeType of mimeTypes) {
+            if (MediaRecorder.isTypeSupported(mimeType)) {
+                selectedMimeType = mimeType;
+                break;
+            }
+        }
+        
+        if (!selectedMimeType) {
+            addMessage("Your browser doesn't support audio recording.", false);
+            stream.getTracks().forEach(track => track.stop());
+            return;
+        }
+        
+        console.log('Using MIME type:', selectedMimeType);
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: selectedMimeType
+        });
+        
+        audioChunks = [];
+        isRecording = true;
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+                console.log('Audio chunk received:', event.data.size, 'bytes');
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            console.log('Recording stopped');
+            
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+            
+            if (audioChunks.length === 0) {
+                statusIndicator.style.display = 'none';
+                addMessage("No audio was recorded.", false);
+                resetRecordingUI();
+                return;
+            }
+            
+            // Create blob with correct MIME type
+            const audioBlob = new Blob(audioChunks, { type: selectedMimeType });
+            console.log('Audio blob size:', audioBlob.size, 'bytes');
+            
+            if (audioBlob.size < 1000) {
+                statusIndicator.style.display = 'none';
+                addMessage("Recording was too short. Please try again.", false);
+                resetRecordingUI();
+                return;
+            }
+            
+            await transcribeAudio(audioBlob, selectedMimeType);
+            resetRecordingUI();
+        };
+        
+        mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event.error);
+            statusIndicator.style.display = 'none';
+            addMessage("Recording error occurred.", false);
+            resetRecordingUI();
+        };
+        
+        // Start recording
+        mediaRecorder.start(1000); // Collect data every second
+        console.log('Recording started');
+        
+        // Update UI
+        voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        voiceBtn.style.background = '#ef4444';
+        
+        statusIndicator.textContent = `Recording... (speak now)`;
+        statusIndicator.style.display = 'block';
+        
+        // Auto-stop after 10 seconds
+        recordingTimeout = setTimeout(() => {
+            if (isRecording) {
+                stopRecording();
+            }
+        }, 10000);
+        
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        addMessage("Please allow microphone access to use voice input.", false);
+        resetRecordingUI();
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        isRecording = false;
+        clearTimeout(recordingTimeout);
+        mediaRecorder.stop();
+        statusIndicator.textContent = "Processing audio...";
+    }
+}
+
+async function transcribeAudio(audioBlob, mimeType) {
+    statusIndicator.textContent = "Transcribing...";
+    
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `recording.${mimeType.includes('webm') ? 'webm' : 'wav'}`);
+    formData.append('language', selectedLanguage);
+    
+    try {
+        const response = await fetch('/transcribe-audio/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Transcription failed');
+        }
+        
+        const data = await response.json();
+        console.log('Transcription result:', data);
+        
+        if (data.text && data.text.trim()) {
+            statusIndicator.style.display = 'none';
+            sendMessage(data.text);
+        } else {
+            statusIndicator.style.display = 'none';
+            addMessage("Sorry, I couldn't understand the audio. Please try again.", false);
+        }
+        
+    } catch (error) {
+        console.error('Transcription error:', error);
+        statusIndicator.style.display = 'none';
+        addMessage("Sorry, transcription failed. Please try again.", false);
+    }
+}
+
+function resetRecordingUI() {
+    isRecording = false;
+    mediaRecorder = null;
+    audioChunks = [];
+    clearTimeout(recordingTimeout);
+    
+    voiceBtn.disabled = false;
+    voiceBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+    voiceBtn.style.background = '';
+    statusIndicator.style.display = 'none';
+}
+        // Helper function to get CSRF token from cookies
+        function getCookie(name) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, value] = cookie.trim().split('=');
+                if (key === name) return decodeURIComponent(value);
+            }
+            return null;
+        }
+
+        // Initial greeting
+        setTimeout(() => {
+            addMessage("Hello! I'm your AI assistant powered by advanced language models. How can I help you today?", false);
+        }, 1000);
+    </script>
+</body>
+</html>
